@@ -11,8 +11,12 @@ import { loginSchema } from "@/schema";
 import { loginAction } from "@/actions";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/AuthStore";
+// import { useSocket } from "@/providers/socket-provider";
 
 function LoginForm() {
+  // const { socket } = useSocket();
+  const setLoginUser = useAuthStore((state) => state.setLoginUser);
   const router = useRouter();
   const {
     register,
@@ -24,8 +28,21 @@ function LoginForm() {
   });
 
   const { execute, isPending } = useAction(loginAction, {
-    onSuccess: () => {
+    onSuccess: ({ data }) => {
       toast.success("Login success");
+      setLoginUser({
+        accessToken: data?.data.accessToken as string,
+        id: data?.data.id as string,
+        email: data?.data.email as string,
+        name: data?.data.name as string,
+        refreshToken: data?.data.refreshToken as string,
+      });
+      // console.log(data?.data.id);
+      // if (socket) {
+      //   socket.auth = { userId: data?.data.id };
+      //   socket?.connect();
+      // }
+
       router.replace("/chat");
     },
     onError: ({ error }) => {

@@ -44,7 +44,7 @@ function ComingCallDialog() {
   }, []);
 
   useEffect(() => {
-    socket.on("receiveCall", (signalData, otherMember, conversationId) => {
+    socket?.on("receiveCall", (signalData, otherMember, conversationId) => {
       if (call.status === "busy") return;
       setCall({
         isRinging: true,
@@ -55,7 +55,7 @@ function ComingCallDialog() {
       });
     });
     return () => {
-      socket.off("receiveCall");
+      socket?.off("receiveCall");
     };
   }, [socket, setCall, call.status]);
   if (!call.isRinging) return null;
@@ -70,7 +70,7 @@ function ComingCallDialog() {
   };
 
   const handdleRejectCall = () => {
-    socket.emit("rejectCall", call.conversationId);
+    socket?.emit("rejectCall", call.conversationId);
     setCall({
       isRinging: false,
       otherMember: { id: "", name: "", email: "" },

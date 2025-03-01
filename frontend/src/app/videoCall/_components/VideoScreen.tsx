@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/providers/socket-provider";
 import { useCallStore } from "@/store/CallStore";
+import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Peer from "simple-peer";
 
@@ -17,10 +18,13 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerRef = useRef<Peer.Instance | null>(null);
-  // const call = useCallStore((state) => state.call);
-  // const setCall = useCallStore((state) => state.setCall);
+  const streamRef = useRef<MediaStream | null>(null);
   const [isRejectCall, setIsRejectCall] = useState(false);
   const [isEndCall, setIsEndCall] = useState(false);
+
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -64,6 +68,7 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         window.close();
       }, 2000);
     });
+
     return () => {
       socket.disconnect();
       socket.off("receiveRejectCall");
@@ -74,16 +79,13 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
   // Tạo và quản lý Peer Connection
   useEffect(() => {
     const setupPeerConnection = async () => {
-      // Cleanup peer cũ nếu tồn tại
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
+
       localVideoRef.current!.srcObject = stream;
-      // if (peerRef.current) {
-      //   peerRef.current.destroy();
-      //   peerRef.current = null;
-      // }
+      streamRef.current = stream;
 
       const iceServers = [
         { urls: "stun:stun.l.google.com:19302" },
@@ -99,14 +101,13 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         initiator: isInitiator,
         trickle: false,
         stream,
-        // stream: streamRef.current as MediaStream,
+
         config: { iceServers },
       });
       console.log("peer", peer);
 
       peerRef.current = peer;
 
-      // Xử lý khi là người gọi (initiator)
       if (isInitiator) {
         peer.on("signal", (offer) => {
           console.log("offer", offer);
@@ -118,15 +119,12 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
           });
         });
 
-        // Lắng nghe answer từ người nhận
         socket.on("receiveAnswer", (answer) => {
           console.log("answer", answer);
 
           if (!peer.destroyed) peer.signal(answer);
         });
-      }
-      // Xử lý khi là người nhận
-      else {
+      } else {
         peer.on("signal", (answer) => {
           console.log("answer", answer);
 
@@ -137,15 +135,19 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         });
         console.log("call.signalData", call.signalData);
 
-        // Feed offer vào peer
         if (call.signalData) peer.signal(call.signalData);
       }
 
-      // Xử lý stream từ remote
-
       peer.on("error", (err) => console.error("Peer error:", err));
-      peer.on("connect", () => console.log("Peer connected"));
-      peer.on("close", () => console.log("Peer closed"));
+      peer.on("connect", () => {
+        setIsConnected(true);
+      });
+      peer.on("close", () => {
+        setIsEndCall(true);
+        setTimeout(() => {
+          window.close();
+        }, 2000);
+      });
 
       peer.on("stream", (remoteStream) => {
         remoteVideoRef.current!.srcObject = remoteStream;
@@ -154,7 +156,6 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
 
     setupPeerConnection();
 
-    // Cleanup
     return () => {
       if (peerRef.current) {
         peerRef.current.destroy();
@@ -162,7 +163,7 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
       }
       socket.off("receiveAnswer");
     };
-  }, [conversationId, isRejectCall, socket]);
+  }, [conversationId, socket]);
 
   const handleEndCall = () => {
     setIsEndCall(true);
@@ -190,6 +191,26 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
     );
   }
 
+  const handleToggleCamera = () => {
+    if (streamRef.current) {
+      const videoTrack = streamRef.current.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsCameraOn((prev) => !prev);
+      }
+    }
+  };
+
+  const handleToggleMic = () => {
+    if (streamRef.current) {
+      const audioTrack = streamRef.current.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsMicOn((prev) => !prev);
+      }
+    }
+  };
+
   return (
     <div className="relative w-full h-screen bg-black flex items-center justify-center overflow-hidden">
       <div className="relative w-full h-full mx-auto overflow-hidden">
@@ -199,6 +220,11 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
           playsInline
           className="w-full h-full object-cover"
         />
+        {!isConnected && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white">
+            <p className="text-xl">Connecting...</p>
+          </div>
+        )}
       </div>
       <div className="absolute w-72 h-40 md:w-96 md:h-56 rounded-lg overflow-hidden top-4 right-4 border-2 border-white shadow-lg">
         <video
@@ -211,27 +237,25 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
       </div>
       <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 p-4 bg-black/50">
         <Button
-          // variant={isCameraOn ? "default" : "destructive"}
-          // onClick={toggleCamera}
+          variant={isCameraOn ? "default" : "destructive"}
+          onClick={handleToggleCamera}
           className="rounded-full w-12 h-12 flex items-center justify-center"
         >
-          {/* {isCameraOn ? "📹" : "🚫"} */}
-          📹
+          {isCameraOn ? <Video /> : <VideoOff />}
         </Button>
         <Button
           variant="destructive"
           onClick={handleEndCall}
           className="rounded-full w-12 h-12 flex items-center justify-center"
         >
-          📞
+          <PhoneOff />
         </Button>
         <Button
-          // variant={isMicOn ? "default" : "destructive"}
-          // onClick={toggleMic}
+          variant={isMicOn ? "default" : "destructive"}
+          onClick={handleToggleMic}
           className="rounded-full w-12 h-12 flex items-center justify-center"
         >
-          {/* {isMicOn ? "🎤" : "🔇"} */}
-          🎤
+          {isMicOn ? <Mic /> : <MicOff />}
         </Button>
       </div>
     </div>

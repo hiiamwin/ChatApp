@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import SocketProvider from "../providers/socket-provider";
+// import SocketProvider from "../providers/socket-provider";
 import { Toaster } from "@/components/ui/sonner";
 import TanstackQueryProvider from "@/providers/tanstackquery-provider";
 
@@ -32,7 +32,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-black`}
       >
         <TanstackQueryProvider>
-          <SocketProvider>{children}</SocketProvider>
+          {/* <SocketProvider socketUrl={process.env.SOCKET_URL as string}> */}
+          {children}
+          {/* </SocketProvider> */}
         </TanstackQueryProvider>
         <Toaster
           position="top-right"

@@ -1,16 +1,37 @@
 "use client";
-import React, { createContext, useContext } from "react";
+import { useAuthStore } from "@/store/AuthStore";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 type SocketContextType = {
-  socket: Socket;
+  socket: Socket | null;
 };
 export const SocketContext = createContext<SocketContextType | null>(null);
-function SocketProvider({ children }: { children: React.ReactNode }) {
-  const socket = io("http://localhost:8080", {
-    autoConnect: false,
-  });
+function SocketProvider({
+  children,
+  socketUrl,
+}: {
+  children: React.ReactNode;
+  socketUrl: string;
+}) {
+  const loginUser = useAuthStore((state) => state.loginUser);
 
+  const [socket, setSocket] = useState<Socket | null>(null);
+  useEffect(() => {
+    const socket = io(socketUrl, {
+      // autoConnect: false,
+      reconnection: true,
+    });
+    socket.auth = { userId: loginUser?.id };
+    setSocket(socket);
+    return () => {
+      socket.disconnect();
+    };
+  }, [loginUser?.id, socketUrl]);
+
+  if (!loginUser) {
+    return null;
+  }
   return (
     <SocketContext.Provider
       value={{

@@ -34,9 +34,7 @@ function Conversation({
   const { socket } = useSocket();
 
   useEffect(() => {
-    socket.auth = { userId };
-    socket.connect();
-    socket.on("receiveMessage", (newMessage: MessageType) => {
+    socket?.on("receiveMessage", (newMessage: MessageType) => {
       if (newMessage.conversationId !== conversationId) return;
       queryClient.setQueryData<
         InfiniteData<{ data: getAllMessageResponseType }>
@@ -61,7 +59,7 @@ function Conversation({
     });
 
     return () => {
-      socket.off("receiveMessage");
+      socket?.off("receiveMessage");
     };
   }, [socket, userId, conversationId, queryClient]);
 
@@ -139,11 +137,15 @@ function Conversation({
         };
       }
     );
-    socket.emit("sendMessage", {
-      conversationId,
-      messageContent: data.message,
-      senderId: userId,
-    });
+    socket?.emit(
+      "sendMessage",
+      {
+        conversationId,
+        messageContent: data.message,
+        senderId: userId,
+      },
+      (message: string) => console.log(message)
+    );
     reset({ message: "" });
   };
 
