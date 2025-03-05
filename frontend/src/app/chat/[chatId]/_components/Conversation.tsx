@@ -69,16 +69,16 @@ function Conversation({
       queryFn: ({ pageParam }) => {
         return getAllMessageAction({
           conversationId,
-          page: pageParam as number,
+          // page: pageParam.page as number,
           limit: 10,
+          nextCursor: pageParam as string,
         });
       },
-      getNextPageParam: (lastPage, allPages, lastPageParam) => {
-        const totalData = lastPage?.data?.total as number;
-        const totalPage = Math.ceil(totalData / 10);
-        return lastPageParam < totalPage ? lastPageParam + 1 : undefined;
+      getNextPageParam: (lastPage) => {
+        const nextCursor = lastPage?.data?.nextCursor;
+        return nextCursor ? nextCursor : undefined;
       },
-      initialPageParam: 1,
+      initialPageParam: "",
 
       refetchOnWindowFocus: false,
     });
@@ -91,8 +91,6 @@ function Conversation({
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
-      console.log(inView);
-
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -113,6 +111,7 @@ function Conversation({
         email,
         name,
       },
+      status: "sending",
     };
 
     queryClient.setQueryData<InfiniteData<{ data: getAllMessageResponseType }>>(
@@ -122,15 +121,15 @@ function Conversation({
 
         const firstpage = oldData.pages[0];
 
-        const updatedLastPage = {
+        const updatedFirstPage = {
           data: {
-            ...firstpage.data,
             messages: [newMessage, ...firstpage.data.messages],
             total: firstpage.data.total || 0,
+            nextCursor: firstpage.data.nextCursor,
           },
         };
         const newPages = [...oldData.pages];
-        newPages[0] = updatedLastPage;
+        newPages[0] = updatedFirstPage;
         return {
           ...oldData,
           pages: newPages,
@@ -144,7 +143,40 @@ function Conversation({
         messageContent: data.message,
         senderId: userId,
       },
-      (message: string) => console.log(message)
+      (message: MessageType) => {
+        console.log("Message sent", message);
+
+        queryClient.setQueryData<
+          InfiniteData<{ data: getAllMessageResponseType }>
+        >(["messages", conversationId], (oldData) => {
+          if (!oldData) return oldData;
+
+          const firstpage = oldData.pages[0];
+
+          const newMessages: MessageType[] = firstpage.data.messages.map(
+            (msg) => {
+              if (msg.id === newMessage.id) {
+                return { ...msg, status: "sent" };
+              }
+              return msg;
+            }
+          );
+
+          const updatedFirstPage = {
+            data: {
+              messages: newMessages,
+              total: firstpage.data.total || 0,
+              nextCursor: firstpage.data.nextCursor,
+            },
+          };
+          const newPages = [...oldData.pages];
+          newPages[0] = updatedFirstPage;
+          return {
+            ...oldData,
+            pages: newPages,
+          };
+        });
+      }
     );
     reset({ message: "" });
   };
@@ -182,6 +214,13 @@ function Conversation({
               >
                 <p className="text-xs">{message?.user.name}</p>
                 <p>{message?.messageContent}</p>
+                <p>
+                  {message?.status === "sending"
+                    ? "Sending"
+                    : message?.status === "error"
+                    ? "error"
+                    : ""}
+                </p>
               </div>
             </div>
           ))}
@@ -205,18 +244,3 @@ function Conversation({
 }
 
 export default Conversation;
-
-{
-  /* <div className="flex items-start gap-3">
-            <Avatar>
-              <AvatarFallback>A</AvatarFallback>
-            </Avatar>
-            <div className="bg-muted rounded-lg px-4 py-2">
-              <div className="flex gap-2">
-                <span className="w-2 h-2 rounded-full bg-current animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-current animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 rounded-full bg-current animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </div>
-          </div> */
-}

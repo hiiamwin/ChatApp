@@ -48,7 +48,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const newMessage = await this.messageService.create(data);
 
     client.to(data.conversationId).emit("receiveMessage", newMessage);
-    return "Message sent";
+    return newMessage;
   }
 
   @SubscribeMessage("makeCall")

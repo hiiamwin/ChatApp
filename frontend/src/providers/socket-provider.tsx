@@ -6,7 +6,7 @@ import { io, Socket } from "socket.io-client";
 type SocketContextType = {
   socket: Socket | null;
 };
-export const SocketContext = createContext<SocketContextType | null>(null);
+export const SocketContext = createContext<SocketContextType>({ socket: null });
 function SocketProvider({
   children,
   socketUrl,
@@ -45,9 +45,6 @@ function SocketProvider({
 
 export function useSocket() {
   const context = useContext(SocketContext);
-  if (!context) {
-    throw new Error("useSocket must be used within a SocketProvider");
-  }
   return context;
 }
 

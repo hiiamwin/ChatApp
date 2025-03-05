@@ -16,11 +16,13 @@ export async function getAllConverSationByUserId(
 
 export async function getMessage(
   conversationId: string,
-  page: number,
-  limit: number
+  // page: number,
+
+  limit: number,
+  nextCursor: string | null
 ): Promise<ResponseType<getAllMessageResponseType>> {
   const response = await fetch(
-    `${process.env.API_URL}/message/${conversationId}?page=${page}&limit=${limit}`
+    `${process.env.API_URL}/message/${conversationId}?nextCursor=${nextCursor}&limit=${limit}`
   );
   const data = await response.json();
   return data;

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Message } from "./entities/message.entity";
-import { Repository } from "typeorm";
+import { Repository, LessThan } from "typeorm";
 import { GetAllMessageRequestDto } from "./dto/get-all-message-request.dto";
 import { SuccessResponse } from "src/common/success.response";
 import { CreateMessageDto } from "./dto/create-message.dto";
@@ -24,16 +24,29 @@ export class MessageService {
     conversationId: string,
     getAllMessageRequestDto: GetAllMessageRequestDto,
   ) {
+    const where = {
+      conversationId,
+      sentAt: getAllMessageRequestDto.nextCursor
+        ? LessThan(new Date(getAllMessageRequestDto.nextCursor))
+        : undefined,
+    };
+
     const [messages, total] = await this.messageRepository.findAndCount({
-      where: { conversationId },
+      where,
       relations: ["user"],
       order: { sentAt: "DESC" },
-      skip: (getAllMessageRequestDto.page - 1) * getAllMessageRequestDto.limit,
-      take: getAllMessageRequestDto.limit,
+      take: getAllMessageRequestDto.limit + 1,
     });
+
+    const isLastPage = messages.length <= getAllMessageRequestDto.limit;
+
+    const nextCursor = isLastPage
+      ? null
+      : messages[getAllMessageRequestDto.limit - 1].sentAt;
     return new SuccessResponse(200, "Success", {
-      messages,
+      messages: messages.slice(0, getAllMessageRequestDto.limit),
       total,
+      nextCursor,
     });
   }
 

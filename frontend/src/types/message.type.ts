@@ -7,9 +7,11 @@ export type MessageType = {
   senderId: string;
   sentAt: string;
   user: UserType;
+  status?: "sent" | "error" | "sending";
 };
 
 export type getAllMessageResponseType = {
   messages: MessageType[];
   total: number;
+  nextCursor: string | null;
 };

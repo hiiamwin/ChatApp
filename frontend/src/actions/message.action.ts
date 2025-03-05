@@ -8,8 +8,10 @@ export const getAllMessageAction = actionClient
   .action(async ({ parsedInput }) => {
     const response = await getMessage(
       parsedInput.conversationId,
-      parsedInput.page,
-      parsedInput.limit
+      // parsedInput.page,
+      parsedInput.limit,
+      parsedInput.nextCursor
     );
+
     return response.data;
   });
