@@ -16,7 +16,13 @@ async function VideoCallPage({
   }
   const loginData = await decrypt(session.value);
   const conversationId = (await searchParams).conversationId;
-  return <VideoScreen conversationId={conversationId} userId={loginData.id} />;
+  return (
+    <VideoScreen
+      conversationId={conversationId}
+      userId={loginData.id}
+      socketUrl={process.env.SOCKET_URL as string}
+    />
+  );
 }
 
 export default VideoCallPage;

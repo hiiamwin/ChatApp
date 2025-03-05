@@ -1,20 +1,22 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { useSocket } from "@/providers/socket-provider";
 import { useCallStore } from "@/store/CallStore";
 import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Socket } from "socket.io-client";
 import { useEffect, useRef, useState } from "react";
 import Peer from "simple-peer";
+import { io } from "socket.io-client";
 
 type VideoScreenProps = {
   conversationId: string;
   userId: string;
+  socketUrl: string;
 };
 
 const call = useCallStore.getState().call;
 const setCall = useCallStore.getState().setCall;
-function VideoScreen({ conversationId, userId }: VideoScreenProps) {
-  const { socket } = useSocket();
+function VideoScreen({ conversationId, userId, socketUrl }: VideoScreenProps) {
+  const [socket, setSocket] = useState<Socket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerRef = useRef<Peer.Instance | null>(null);
@@ -51,9 +53,13 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
 
   // Kết nối socket
   useEffect(() => {
+    const socket = io(socketUrl, {
+      reconnection: true,
+    });
     socket.auth = { userId, conversationId };
-    socket.connect();
-    socket.on("receiveRejectCall", () => {
+    setSocket(socket);
+
+    socket?.on("receiveRejectCall", () => {
       setIsRejectCall(true);
 
       setTimeout(() => {
@@ -61,7 +67,7 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
       }, 2000);
     });
 
-    socket.on("receiveEndCall", () => {
+    socket?.on("receiveEndCall", () => {
       setIsEndCall(true);
 
       setTimeout(() => {
@@ -70,14 +76,15 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
     });
 
     return () => {
-      socket.disconnect();
-      socket.off("receiveRejectCall");
-      socket.off("endCall");
+      socket?.disconnect();
+      socket?.off("receiveRejectCall");
+      socket?.off("endCall");
     };
-  }, [conversationId, socket, userId]);
+  }, [conversationId, socketUrl, userId]);
 
   // Tạo và quản lý Peer Connection
   useEffect(() => {
+    if (!socket) return;
     const setupPeerConnection = async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
@@ -112,14 +119,14 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         peer.on("signal", (offer) => {
           console.log("offer", offer);
 
-          socket.emit("makeCall", {
+          socket?.emit("makeCall", {
             signalData: offer,
             conversationId,
             otherMember: call.otherMember,
           });
         });
 
-        socket.on("receiveAnswer", (answer) => {
+        socket?.on("receiveAnswer", (answer) => {
           console.log("answer", answer);
 
           if (!peer.destroyed) peer.signal(answer);
@@ -128,7 +135,7 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         peer.on("signal", (answer) => {
           console.log("answer", answer);
 
-          socket.emit("answerCall", {
+          socket?.emit("answerCall", {
             signalData: answer,
             conversationId,
           });
@@ -161,14 +168,14 @@ function VideoScreen({ conversationId, userId }: VideoScreenProps) {
         peerRef.current.destroy();
         peerRef.current = null;
       }
-      socket.off("receiveAnswer");
+      socket?.off("receiveAnswer");
     };
   }, [conversationId, socket]);
 
   const handleEndCall = () => {
     setIsEndCall(true);
 
-    socket.emit("endCall", conversationId);
+    socket?.emit("endCall", conversationId);
 
     setTimeout(() => {
       window.close();
